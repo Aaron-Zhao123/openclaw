@@ -47,6 +47,120 @@ const BRAVE_SEARCH_LANG_CODE = /^[a-z]{2}$/i;
 const BRAVE_UI_LANG_LOCALE = /^([a-z]{2})-([a-z]{2})$/i;
 const TRUSTED_NETWORK_SSRF_POLICY = { dangerouslyAllowPrivateNetwork: true } as const;
 
+const BRAVE_LOCALE_VALUES = [
+  "es-AR",
+  "en-AU",
+  "de-AT",
+  "nl-BE",
+  "fr-BE",
+  "pt-BR",
+  "en-CA",
+  "fr-CA",
+  "es-CL",
+  "da-DK",
+  "fi-FI",
+  "fr-FR",
+  "de-DE",
+  "el-GR",
+  "zh-HK",
+  "en-IN",
+  "en-ID",
+  "it-IT",
+  "ja-JP",
+  "ko-KR",
+  "en-MY",
+  "es-MX",
+  "nl-NL",
+  "en-NZ",
+  "no-NO",
+  "zh-CN",
+  "pl-PL",
+  "en-PH",
+  "ru-RU",
+  "en-ZA",
+  "es-ES",
+  "sv-SE",
+  "fr-CH",
+  "de-CH",
+  "zh-TW",
+  "tr-TR",
+  "en-GB",
+  "en-US",
+  "es-US",
+] as const;
+
+const BraveLocaleEnum = Type.Union(
+  BRAVE_LOCALE_VALUES.map((v) => Type.Literal(v)),
+  { description: "Brave locale code (e.g., 'en-US', 'en-GB', 'de-DE', 'fr-FR', 'ja-JP')." },
+);
+
+// Brave search_lang uses lowercase language/locale codes (different from ui_lang)
+const BRAVE_SEARCH_LANG_VALUES = [
+  "ar",
+  "eu",
+  "bn",
+  "bg",
+  "ca",
+  "zh-hans",
+  "zh-hant",
+  "hr",
+  "cs",
+  "da",
+  "nl",
+  "en",
+  "en-gb",
+  "et",
+  "fi",
+  "fr",
+  "gl",
+  "de",
+  "el",
+  "gu",
+  "he",
+  "hi",
+  "hu",
+  "is",
+  "it",
+  "jp",
+  "kn",
+  "ko",
+  "lv",
+  "lt",
+  "ms",
+  "ml",
+  "mr",
+  "nb",
+  "pl",
+  "pt-br",
+  "pt-pt",
+  "pa",
+  "ro",
+  "ru",
+  "sr",
+  "sk",
+  "sl",
+  "es",
+  "sv",
+  "ta",
+  "te",
+  "th",
+  "tr",
+  "uk",
+  "vi",
+] as const;
+
+const BraveSearchLangString = Type.String({
+  description:
+    "Lowercase language code for search results. MUST be one of: en, en-gb, de, fr, es, it, pt-br, pt-pt, ja, ko, zh-hans, zh-hant, nl, ru, pl, sv, da, fi, nb, el, tr, ar, hi, cs, hu, ro, th, vi, uk. Do NOT use ll-CC format like 'en-US' — use 'en' instead.",
+  enum: [...BRAVE_SEARCH_LANG_VALUES],
+} as any);
+
+const BraveUiLangString = Type.String({
+  description:
+    "Full locale code in ll-CC format for UI language. MUST be one of: en-US, en-GB, en-AU, en-CA, en-NZ, en-IN, en-ZA, en-PH, en-MY, en-ID, de-DE, de-AT, de-CH, fr-FR, fr-CA, fr-BE, fr-CH, es-ES, es-AR, es-CL, es-MX, es-US, pt-BR, it-IT, ja-JP, ko-KR, zh-CN, zh-HK, zh-TW, nl-NL, nl-BE, ru-RU, pl-PL, sv-SE, da-DK, fi-FI, no-NO, el-GR, tr-TR. Do NOT use bare codes like 'en' or 'de'.",
+  enum: [...BRAVE_LOCALE_VALUES],
+} as any);
+
 const WebSearchSchema = Type.Object({
   query: Type.String({ description: "Search query string." }),
   count: Type.Optional(
@@ -62,18 +176,8 @@ const WebSearchSchema = Type.Object({
         "2-letter country code for region-specific results (e.g., 'DE', 'US', 'ALL'). Default: 'US'.",
     }),
   ),
-  search_lang: Type.Optional(
-    Type.String({
-      description:
-        "Short ISO language code for search results (e.g., 'de', 'en', 'fr', 'tr'). Must be a 2-letter code, NOT a locale.",
-    }),
-  ),
-  ui_lang: Type.Optional(
-    Type.String({
-      description:
-        "Locale code for UI elements in language-region format (e.g., 'en-US', 'de-DE', 'fr-FR', 'tr-TR'). Must include region subtag.",
-    }),
-  ),
+  search_lang: Type.Optional(BraveSearchLangString),
+  ui_lang: Type.Optional(BraveUiLangString),
   freshness: Type.Optional(
     Type.String({
       description:

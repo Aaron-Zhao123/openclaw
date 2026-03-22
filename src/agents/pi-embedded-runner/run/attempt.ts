@@ -2351,42 +2351,45 @@ export async function runEmbeddedAttempt(
         const seqBaseUrl = params.model.baseUrl;
         let seqSessionId: string | undefined;
         const origFetch = globalThis.fetch;
-        globalThis.fetch = async (
-          input: Parameters<typeof fetch>[0],
-          init?: Parameters<typeof fetch>[1],
-        ): Promise<Response> => {
-          const url =
-            typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-          if (!url.startsWith(seqBaseUrl)) {
-            return origFetch(input, init);
-          }
-          // Inject session ID on all requests after the first response
-          if (seqSessionId) {
-            const merged: Record<string, string> = {};
-            if (init?.headers) {
-              if (init.headers instanceof Headers) {
-                init.headers.forEach((v, k) => {
-                  merged[k] = v;
-                });
-              } else if (Array.isArray(init.headers)) {
-                for (const [k, v] of init.headers) {
-                  merged[k] = v;
-                }
-              } else {
-                Object.assign(merged, init.headers);
-              }
+        globalThis.fetch = Object.assign(
+          async (
+            input: Parameters<typeof fetch>[0],
+            init?: Parameters<typeof fetch>[1],
+          ): Promise<Response> => {
+            const url =
+              typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+            if (!url.startsWith(seqBaseUrl)) {
+              return origFetch(input, init);
             }
-            merged["X-Session-ID"] = seqSessionId;
-            init = { ...init, headers: merged };
-          }
-          const res = await origFetch(input, init);
-          // Capture session ID from response (first turn establishes it)
-          const sid = res.headers.get("X-Session-ID") ?? res.headers.get("x-session-id");
-          if (sid) {
-            seqSessionId = sid;
-          }
-          return res;
-        };
+            // Inject session ID on all requests after the first response
+            if (seqSessionId) {
+              const merged: Record<string, string> = {};
+              if (init?.headers) {
+                if (init.headers instanceof Headers) {
+                  init.headers.forEach((v, k) => {
+                    merged[k] = v;
+                  });
+                } else if (Array.isArray(init.headers)) {
+                  for (const [k, v] of init.headers) {
+                    merged[k] = v;
+                  }
+                } else {
+                  Object.assign(merged, init.headers);
+                }
+              }
+              merged["X-Session-ID"] = seqSessionId;
+              init = { ...init, headers: merged };
+            }
+            const res = await origFetch(input, init);
+            // Capture session ID from response (first turn establishes it)
+            const sid = res.headers.get("X-Session-ID") ?? res.headers.get("x-session-id");
+            if (sid) {
+              seqSessionId = sid;
+            }
+            return res;
+          },
+          { preconnect: origFetch.preconnect },
+        );
       }
 
       const innerStreamFn = activeSession.agent.streamFn;

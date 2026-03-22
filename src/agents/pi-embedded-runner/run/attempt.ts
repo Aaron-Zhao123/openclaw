@@ -2295,7 +2295,11 @@ export async function runEmbeddedAttempt(
       // historical messages at attempt start, but the agent loop's internal tool call →
       // tool result cycles bypass that path. Wrap streamFn so every outbound request
       // sees sanitized tool call IDs.
-      if (transcriptPolicy.sanitizeToolCallIds && transcriptPolicy.toolCallIdMode) {
+      if (
+        transcriptPolicy.sanitizeToolCallIds &&
+        transcriptPolicy.toolCallIdMode &&
+        params.provider !== "sequrity"
+      ) {
         const inner = activeSession.agent.streamFn;
         const mode = transcriptPolicy.toolCallIdMode;
         activeSession.agent.streamFn = (model, context, options) => {
@@ -2336,6 +2340,52 @@ export async function runEmbeddedAttempt(
             messages: sanitized,
           } as unknown;
           return inner(model, nextContext as typeof context, options);
+        };
+      }
+
+      // Sequrity FSM is stateful per session. Wrap the global fetch to:
+      //   1. Capture X-Session-ID from the first response header
+      //   2. Inject it into all subsequent requests to the same endpoint
+      // The patched fetch is scoped to this attempt via the baseUrl prefix check.
+      if (params.provider === "sequrity" && params.model.baseUrl) {
+        const seqBaseUrl = params.model.baseUrl;
+        let seqSessionId: string | undefined;
+        const origFetch = globalThis.fetch;
+        globalThis.fetch = async (
+          input: Parameters<typeof fetch>[0],
+          init?: Parameters<typeof fetch>[1],
+        ): Promise<Response> => {
+          const url =
+            typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          if (!url.startsWith(seqBaseUrl)) {
+            return origFetch(input, init);
+          }
+          // Inject session ID on all requests after the first response
+          if (seqSessionId) {
+            const merged: Record<string, string> = {};
+            if (init?.headers) {
+              if (init.headers instanceof Headers) {
+                init.headers.forEach((v, k) => {
+                  merged[k] = v;
+                });
+              } else if (Array.isArray(init.headers)) {
+                for (const [k, v] of init.headers) {
+                  merged[k] = v;
+                }
+              } else {
+                Object.assign(merged, init.headers);
+              }
+            }
+            merged["X-Session-ID"] = seqSessionId;
+            init = { ...init, headers: merged };
+          }
+          const res = await origFetch(input, init);
+          // Capture session ID from response (first turn establishes it)
+          const sid = res.headers.get("X-Session-ID") ?? res.headers.get("x-session-id");
+          if (sid) {
+            seqSessionId = sid;
+          }
+          return res;
         };
       }
 

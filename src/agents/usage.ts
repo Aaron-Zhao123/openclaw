@@ -36,6 +36,8 @@ export type NormalizedUsage = {
   cacheRead?: number;
   cacheWrite?: number;
   total?: number;
+  /** Total non-cached input tokens across all API calls in a session. */
+  totalInput?: number;
 };
 
 export type AssistantUsageSnapshot = {

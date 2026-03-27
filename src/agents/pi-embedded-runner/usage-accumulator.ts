@@ -12,6 +12,8 @@ export type UsageAccumulator = {
   lastCacheRead: number;
   lastCacheWrite: number;
   lastTotal: number;
+  /** Total non-cached input tokens accumulated across all API calls. */
+  totalInput: number;
 };
 
 export const createUsageAccumulator = (): UsageAccumulator => ({
@@ -25,6 +27,7 @@ export const createUsageAccumulator = (): UsageAccumulator => ({
   lastCacheRead: 0,
   lastCacheWrite: 0,
   lastTotal: 0,
+  totalInput: 0,
 });
 
 type MaybeUsage = NormalizedUsage | undefined;
@@ -52,6 +55,7 @@ export const mergeUsageIntoAccumulator = (target: UsageAccumulator, usage: Maybe
   target.lastCacheRead = usage.cacheRead ?? 0;
   target.lastCacheWrite = usage.cacheWrite ?? 0;
   target.lastTotal = callTotal;
+  target.totalInput += usage.input ?? 0;
 };
 
 export const toNormalizedUsage = (usage: UsageAccumulator): NormalizedUsage | undefined => {
@@ -70,6 +74,7 @@ export const toNormalizedUsage = (usage: UsageAccumulator): NormalizedUsage | un
     cacheRead: usage.cacheRead || undefined,
     cacheWrite: usage.cacheWrite || undefined,
     total: usage.total || undefined,
+    totalInput: usage.totalInput || undefined,
   };
 };
 
